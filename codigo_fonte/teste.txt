@@ -1,0 +1,4 @@
+SOMA	JN	$1,$s2,$s2
+	CN	$s1,$s2,$s2
+TESTE	JZ	/2001
+	END
