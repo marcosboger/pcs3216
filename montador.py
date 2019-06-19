@@ -26,8 +26,11 @@ passo = 1 #passo atual do montador
 CI = 0 
 acumulador = 0
 erro = False #indica se houve erro no passo
-codigo = 'teste'
+codigo = ''
 codigo_objeto = []
+with open('./memoria/memoria.txt', 'r') as arquivoMemoria:
+    memoria = arquivoMemoria.read()
+    memoria = memoria.split()
 
 if(passo == 1):
     with open('./codigo_fonte/teste.txt', 'r') as arquivo:
@@ -46,7 +49,7 @@ if(passo == 1):
                     tab_simbolos[palavras[0]]['status'] = 'definido'
                     tab_simbolos[palavras[0]]['linha'] = CI
                 else:
-                    tab_simbolos[palavras[0]] = {'linha':CI, 'status':'definido'}
+                    tab_simbolos[palavras[0]] = {'linha':CI, 'status':'definido', 'funcao':'endereco'}
                 del palavras[0]
 
             #Analise do Mnemonico
@@ -57,59 +60,82 @@ if(passo == 1):
 
             #Analise do operador
             #separo os mnemonicos pelos possiveis tipo de operador (rotulo ou enderecamento direto)
-            if(not(re.search("^/\d", palavras[1]))):
+            if(palavras[0] == '@'):
+                 CI = int(palavras[1][2]+palavras[1][3]+palavras[1][4])
+            if(not(re.search("^/\d", palavras[1])) and palavras[0] != 'IO' and palavras[0] != 'OS' and palavras[0] != 'CN'):
                 if((palavras[1] in tab_simbolos and tab_simbolos[palavras[1]]['status'] == 'indefinido') or not(palavras[1] in tab_simbolos)):
                     if(palavras[0] == 'K'):
-                        tab_simbolos[label] = {'valor':palavras[1], 'status':'definido'}
+                        del memoria[2*CI+1]
+                        memoria.insert(2*CI+1,palavras[1])
+                        arquivoMemoria.close()
+                        tab_simbolos[label] = {'linha':CI, 'status':'definido', 'funcao':'valor'}
                         isEnderecoConvertido = True
                     else:
-                        tab_simbolos[palavras[1]] = {'linha':'-', 'status':'indefinido'}
+                        tab_simbolos[palavras[1]] = {'linha':'-', 'status':'indefinido','funcao':'endereco'}
                         isEnderecoConvertido = False
-                    
                 if(palavras[1] in tab_simbolos and tab_simbolos[palavras[1]]['status'] == 'definido'):
                     endereco_convertido = tab_simbolos[palavras[1]]['linha']
                     isEnderecoConvertido = True
             elif(palavras[0] in tab_mnemonicos and tab_mnemonicos[palavras[0]]['tamanho'] == 2):
                 endereco_convertido = palavras[1][1]+palavras[1][2]+palavras[1][3]+palavras[1][4]
             elif(palavras[0] in tab_mnemonicos and tab_mnemonicos[palavras[0]]['tamanho'] == 1):
-                endereco_convertido = palavras[1][1]+palavras[1][2]
+                endereco_convertido = palavras[1][0]
             if(palavras[0] in tab_mnemonicos):
                 CI = CI + tab_mnemonicos[palavras[0]]['tamanho']
+            if(palavras[0] == 'K'):
+                CI = CI + 1
             linha = arquivo.readline() #le nova linha
             palavras = linha.split(";")
             palavras = palavras[0].split()
             label = palavras[0]
     for simbolo in tab_simbolos:
         if(tab_simbolos[simbolo]['status'] == 'indefinido'):
-            print("Erro: simbolo não definido (" + simbolo + ")")
+            print("Erro: simbolo nao definido (" + simbolo + ")")
             erro = True
     if(erro == True):
-        print("Erro ocorrido! Montagem não foi feita com sucesso")
+        print("Erro ocorrido! Montagem nao foi feita com sucesso")
     else: 
         print(CI)
         print(tab_simbolos)   
-        passo = 2    
+        passo = 2  
+        isEnderecoConvertido = False  
 
 if(passo == 2):
     with open('./codigo_fonte/teste.txt', 'r') as arquivo:
         linha = arquivo.readline()
-        palavras = linha.split()
+        palavras = linha.split(";")
+        palavras = palavras[0].split()
         while(palavras[0] != '#' and palavras[1] != '#'):
             if(len(palavras) == 3):
                 del palavras[0]
             if(palavras[0] in tab_mnemonicos):
                 if(palavras[1] in tab_simbolos and tab_simbolos[palavras[1]]['status'] == 'definido'):
-                    i = 0#endereco_convertido = tab_simbolos[palavras[1]]['linha']
+                    endereco_convertido = tab_simbolos[palavras[1]]['linha']
+                    isEnderecoConvertido = True
+                    if(int(endereco_convertido) < 100 and int(endereco_convertido) >= 10):
+                        endereco_convertido = '0'+str(int(endereco_convertido))
+                        isEnderecoConvertido = True
+                    elif(int(endereco_convertido) < 10):
+                        endereco_convertido = '00'+str(int(endereco_convertido))
+                        isEnderecoConvertido = True
                 elif(palavras[0] in tab_mnemonicos and tab_mnemonicos[palavras[0]]['tamanho'] == 2):
                     endereco_convertido = palavras[1][2]+palavras[1][3]+palavras[1][4]
+                    isEnderecoConvertido = True
                 elif(palavras[0] in tab_mnemonicos and tab_mnemonicos[palavras[0]]['tamanho'] == 1):
                     endereco_convertido = palavras[1][1]
+                    isEnderecoConvertido = True
                 codigo = tab_mnemonicos[palavras[0]]['codigo']+str(endereco_convertido)
-            print(codigo)
-            codigo_objeto.append(codigo)
+            if(isEnderecoConvertido == True):
+                codigo_objeto.append(codigo)
+            isEnderecoConvertido = False
             linha = arquivo.readline()
             palavras = linha.split(";")
             palavras = palavras[0].split()
+for objeto in codigo_objeto:
+    print(objeto)
+with open('./memoria/memoria.txt', 'w') as arquivoMemoria:
+    for posicao in memoria:
+        arquivoMemoria.write(posicao+'\n')
 with open('./codigo_objeto/teste.txt', 'w+') as arquivoEscrita:
     for codigo in codigo_objeto:
         arquivoEscrita.write(codigo)
